@@ -1,6 +1,6 @@
 // ================= CONFIGURAÇÕES =================
-const API_URL = "SUA_URL_DO_APPS_SCRIPT_AQUI";
-const WHATSAPP_NUMERO = "5527999999999"; 
+const API_URL = "https://script.google.com/macros/s/AKfycbyxeyY1T0pRCzsqhcsM5qMUAUBdblOj_DkOEZ_zQCM9IpkRzvlsksF5OPvn7lokUJkc/exec";
+const WHATSAPP_NUMERO = "5527996313345"; 
 
 // ================= ESTADO DA APLICAÇÃO =================
 let produtos = [];
