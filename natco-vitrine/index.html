@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#cb583b">
+  <meta name="description" content="Conheça os sabores artesanais da Natco, culinária argentina em Vitória e Vila Velha.">
+  <title>Natco | Culinária Argentina</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <div class="announcement">🇦🇷 Sabores argentinos feitos com carinho · Entregas em Vitória e Vila Velha</div>
+
+  <header class="site-header">
+    <a class="brand" href="#" aria-label="Natco - página inicial">
+      <img src="assets/logo-natco.png" alt="Logo Natco">
+      <span class="brand-copy"><strong>natco</strong><small>CULINÁRIA ARGENTINA</small></span>
+    </a>
+    <nav class="desktop-nav" aria-label="Navegação principal">
+      <a href="#inicio">Início</a>
+      <a href="#produtos">Cardápio</a>
+    </nav>
+    <button class="cart-button" id="open-cart" type="button" aria-label="Abrir carrinho">
+      <span class="cart-icon">🛍</span><span class="cart-label">Meu pedido</span>
+      <span class="cart-count" id="cart-count">0</span>
+    </button>
+  </header>
+
+  <main>
+    <section class="hero hero-compact" id="inicio">
+      <div class="hero-brand-mark">
+        <img src="assets/logo-natco.png" alt="Ilustração da marca Natco">
+      </div>
+      <div class="hero-copy">
+        <p class="brand-description">Culinária Argentina 🇦🇷<br>De Mendoza para o mundo.</p>
+        <a class="hero-menu-link" href="#produtos">Ver cardápio <span aria-hidden="true">↓</span></a>
+      </div>
+    </section>
+
+    <section class="menu-section section-wrap" id="produtos">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">CARDÁPIO</span>
+          <h2>Conheça nossos <em>produtos.</em></h2>
+          <p>Escolha seus favoritos e monte seu pedido.</p>
+        </div>
+
+      </div>
+
+      <div class="catalogue-tools">
+        <label class="search-box" for="product-search">
+          <span aria-hidden="true">⌕</span>
+          <input id="product-search" type="search" placeholder="Buscar produtos..." autocomplete="off">
+          <button id="clear-search" type="button" aria-label="Limpar busca" hidden>×</button>
+        </label>
+        <p class="search-hint" id="search-hint" aria-live="polite"></p>
+      </div>
+      <div class="category-list" id="category-list" aria-label="Filtrar por categoria">
+        <button class="category-chip active" data-category="Todos" type="button">Todos os produtos</button>
+        <button class="category-chip" data-category="Doces" type="button">Doces</button>
+        <button class="category-chip" data-category="Salgados" type="button">Salgados</button>
+        <button class="category-chip" data-category="Combos" type="button">Combos</button>
+      </div>
+
+      <div class="product-grid" id="product-grid"></div>
+      <p class="demo-note">Os produtos, fotos e preços desta primeira versão são exemplos. Troque-os pelos dados reais da Natco antes de publicar.</p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <a class="footer-brand" href="#"><img src="assets/logo-natco.png" alt=""><strong>natco</strong></a>
+    <p>Culinária argentina feita com carinho.</p>
+    <span>Entregas em Vitória e Vila Velha · ES</span>
+    <small>© <span id="year"></span> Natco. Feito com ♡</small>
+  </footer>
+
+  <div class="cart-overlay" id="cart-overlay"></div>
+  <aside class="cart-drawer" id="cart-drawer" aria-label="Seu carrinho" aria-hidden="true">
+    <div class="cart-header">
+      <div><span class="eyebrow">SEU PEDIDO</span><h2>Minha sacolinha <span>♡</span></h2></div>
+      <button class="icon-button" id="close-cart" aria-label="Fechar carrinho" type="button">✕</button>
+    </div>
+    <div class="cart-items" id="cart-items"></div>
+    <div class="cart-empty" id="cart-empty"><span>🛍</span><h3>Sua sacolinha está vazia</h3><p>Que tal escolher algo gostoso?</p><button class="text-link" id="continue-shopping" type="button">Ver cardápio →</button></div>
+    <div class="cart-bottom" id="cart-bottom">
+      <div class="subtotal-row"><span>Subtotal</span><strong id="cart-subtotal">R$ 0,00</strong></div>
+      <p class="cart-disclaimer">Entrega e disponibilidade serão confirmadas pelo WhatsApp.</p>
+      <button class="button button-primary checkout-button" id="checkout-button" type="button">Finalizar pelo WhatsApp <span>↗</span></button>
+    </div>
+  </aside>
+
+  <dialog class="checkout-dialog" id="checkout-dialog">
+    <form id="checkout-form">
+      <div class="dialog-header"><div><span class="eyebrow">SÓ MAIS UM PASSO</span><h2>Como entregamos? ♡</h2></div><button class="icon-button" id="close-checkout" type="button" aria-label="Fechar">✕</button></div>
+      <label for="customer-name">Seu nome *</label>
+      <input id="customer-name" name="name" autocomplete="name" required placeholder="Como podemos te chamar?">
+      <label for="order-method">Você prefere? *</label>
+      <select id="order-method" name="method" required><option value="Entrega">Entrega</option><option value="Retirada">Retirada</option></select>
+      <label for="payment-method">Forma de pagamento *</label>
+      <select id="payment-method" name="payment_method" required>
+        <option value="Pix">Pix</option>
+        <option value="Cartão de Crédito">Cartão de Crédito (na entrega/retirada)</option>
+        <option value="Cartão de Débito">Cartão de Débito (na entrega/retirada)</option>
+        <option value="Dinheiro">Dinheiro</option>
+      </select>
+      <div id="address-field" class="address-fields">
+        <label for="customer-cep">CEP *</label>
+        <div class="cep-row">
+          <input id="customer-cep" name="cep" inputmode="numeric" autocomplete="postal-code" maxlength="9" placeholder="Ex.: 29000-000">
+          <button class="cep-button" id="lookup-cep" type="button">Buscar CEP</button>
+        </div>
+        <p class="cep-status" id="cep-status" aria-live="polite">Digite o CEP para preencher rua, bairro e cidade automaticamente.</p>
+        <label for="customer-street">Rua / Avenida *</label>
+        <input id="customer-street" name="street" autocomplete="address-line1" placeholder="Nome da rua">
+        <div class="address-grid">
+          <div><label for="customer-number">Número *</label><input id="customer-number" name="number" autocomplete="address-line2" placeholder="Nº"></div>
+          <div><label for="customer-complement">Complemento</label><input id="customer-complement" name="complement" placeholder="Apto, bloco, casa..."></div>
+        </div>
+        <label for="customer-neighborhood">Bairro *</label>
+        <input id="customer-neighborhood" name="neighborhood" autocomplete="address-level3" placeholder="Bairro">
+        <div class="address-grid">
+          <div><label for="customer-city">Cidade *</label><input id="customer-city" name="city" autocomplete="address-level2" placeholder="Cidade"></div>
+          <div><label for="customer-state">UF *</label><input id="customer-state" name="state" maxlength="2" autocomplete="address-level1" placeholder="ES"></div>
+        </div>
+      </div>
+      <label for="customer-notes">Observações (opcional)</label>
+      <textarea id="customer-notes" name="notes" rows="2" placeholder="Alguma informação para o pedido?"></textarea>
+      <div class="dialog-total"><span>Subtotal dos produtos</span><strong id="dialog-subtotal">R$ 0,00</strong></div>
+      <p class="cart-disclaimer">Ao continuar, o WhatsApp será aberto com os detalhes do pedido. Ele só será enviado quando você tocar em “Enviar”.</p>
+      <button class="button button-primary checkout-button" type="submit">Continuar para o WhatsApp ↗</button>
+    </form>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

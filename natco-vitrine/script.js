@@ -1,0 +1,389 @@
+// ================= CONFIGURAÇÕES =================
+const API_URL = "https://script.google.com/macros/s/AKfycbyxeyY1T0pRCzsqhcsM5qMUAUBdblOj_DkOEZ_zQCM9IpkRzvlsksF5OPvn7lokUJkc/exec";
+const WHATSAPP_NUMERO = "5527996313345"; 
+
+// ================= ESTADO DA APLICAÇÃO =================
+let produtos = [];
+let carrinho = []; // Memória temporária: zera ao fechar ou dar F5
+let categoriaAtiva = "Todos";
+let termoBusca = "";
+
+// Elementos DOM
+const gridProdutos = document.getElementById("product-grid");
+const buscaInput = document.getElementById("product-search");
+const btnLimparBusca = document.getElementById("clear-search");
+const containerCategorias = document.getElementById("category-list");
+
+// Carrinho DOM
+const btnAbrirCarrinho = document.getElementById("open-cart");
+const btnFecharCarrinho = document.getElementById("close-cart");
+const cartOverlay = document.getElementById("cart-overlay");
+const cartDrawer = document.getElementById("cart-drawer");
+const cartItemsContainer = document.getElementById("cart-items");
+const cartEmpty = document.getElementById("cart-empty");
+const cartBottom = document.getElementById("cart-bottom");
+const cartCount = document.getElementById("cart-count");
+const cartSubtotal = document.getElementById("cart-subtotal");
+const btnContinuarComprando = document.getElementById("continue-shopping");
+
+// Checkout DOM
+const btnCheckout = document.getElementById("checkout-button");
+const checkoutDialog = document.getElementById("checkout-dialog");
+const btnFecharCheckout = document.getElementById("close-checkout");
+const checkoutForm = document.getElementById("checkout-form");
+const dialogSubtotal = document.getElementById("dialog-subtotal");
+const selectMetodo = document.getElementById("order-method");
+const addressField = document.getElementById("address-field");
+
+// ================= INICIALIZAÇÃO =================
+document.addEventListener("DOMContentLoaded", () => {
+  localStorage.removeItem("@natco_cart"); // Garante que não haja restos antigos
+
+  const anoElemento = document.getElementById("year");
+  if (anoElemento) anoElemento.textContent = new Date().getFullYear();
+  
+  carregarProdutosDaPlanilha();
+  configurarEventosFixos();
+  atualizarCarrinho();
+});
+
+// ================= CONVERSOR DE LINKS DE IMAGEM =================
+function formatarLinkImagem(url) {
+  if (!url || typeof url !== "string") return "assets/logo-natco.png";
+  
+  let fileId = "";
+  if (url.includes("drive.google.com")) {
+    const matchD = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    const matchId = url.match(/id=([a-zA-Z0-9_-]+)/);
+    if (matchD && matchD[1]) fileId = matchD[1];
+    else if (matchId && matchId[1]) fileId = matchId[1];
+
+    if (fileId) return `https://lh3.googleusercontent.com/d/${fileId}`;
+  }
+  
+  return url.trim();
+}
+
+// ================= BUSCAR DADOS DO GOOGLE SHEETS =================
+async function carregarProdutosDaPlanilha() {
+  gridProdutos.innerHTML = "<p style='grid-column: 1/-1; text-align:center;'>Carregando delícias...</p>";
+
+  try {
+    const res = await fetch(API_URL);
+    const dados = await res.json();
+
+    produtos = dados.map((item, index) => {
+      const idUnico = item.id ? String(item.id).trim() : `prod_${index + 1}`;
+      
+      return {
+        id: idUnico,
+        nome: item.nome || "Produto sem nome",
+        categoria: (item.categoria ? String(item.categoria).trim() : "Geral"),
+        preco: parseFloat(String(item.preco || 0).replace(",", ".")),
+        descricao: item.descricao || "",
+        imagem: formatarLinkImagem(item.imagem)
+      };
+    }).filter(p => p.nome && p.nome !== "Produto sem nome");
+
+    // Monta as categorias vindas da planilha dinamicamente
+    renderizarCategoriasDinamicas();
+    renderizarProdutos();
+  } catch (erro) {
+    console.error("Erro ao carregar dados:", erro);
+    gridProdutos.innerHTML = "<p style='grid-column: 1/-1; text-align:center;'>Não foi possível carregar os produtos. Tente novamente mais tarde.</p>";
+  }
+}
+
+// ================= GERAR CATEGORIAS DINAMICAMENTE =================
+function renderizarCategoriasDinamicas() {
+  if (!containerCategorias) return;
+
+  // Pega todas as categorias únicas da planilha
+  const categoriasUnicas = [...new Set(produtos.map(p => p.categoria).filter(Boolean))];
+
+  let html = `<button class="category-chip ${categoriaAtiva === 'Todos' ? 'active' : ''}" data-category="Todos" type="button">Todos os produtos</button>`;
+
+  categoriasUnicas.forEach(cat => {
+    const ativa = categoriaAtiva === cat ? "active" : "";
+    html += `<button class="category-chip ${ativa}" data-category="${cat}" type="button">${cat}</button>`;
+  });
+
+  containerCategorias.innerHTML = html;
+
+  // Adiciona evento de clique para cada chip criado
+  containerCategorias.querySelectorAll(".category-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      containerCategorias.querySelectorAll(".category-chip").forEach(c => c.classList.remove("active"));
+      chip.classList.add("active");
+      categoriaAtiva = chip.dataset.category;
+      renderizarProdutos();
+    });
+  });
+}
+
+// ================= RENDERIZAR PRODUTOS =================
+function renderizarProdutos() {
+  const produtosFiltrados = produtos.filter(produto => {
+    const bateCategoria = (categoriaAtiva === "Todos" || produto.categoria.toLowerCase() === categoriaAtiva.toLowerCase());
+    const bateBusca = produto.nome.toLowerCase().includes(termoBusca.toLowerCase()) || 
+                      produto.descricao.toLowerCase().includes(termoBusca.toLowerCase());
+    return bateCategoria && bateBusca;
+  });
+
+  if (produtosFiltrados.length === 0) {
+    gridProdutos.innerHTML = "<p style='grid-column: 1/-1; text-align:center; color: var(--muted); padding: 40px 0;'>Nenhum produto encontrado nesta categoria.</p>";
+    return;
+  }
+
+  gridProdutos.innerHTML = produtosFiltrados.map(produto => `
+    <article class="product-card">
+      <div class="product-photo-wrap">
+        <img class="product-photo" src="${produto.imagem}" alt="${produto.nome}" loading="lazy" onerror="this.src='assets/logo-natco.png'">
+        <span class="product-category">${produto.categoria}</span>
+      </div>
+      <div class="product-info">
+        <h3>${produto.nome}</h3>
+        <p class="product-description">${produto.descricao}</p>
+        
+        <div class="product-bottom-wrap">
+          <span class="product-price">${formatarPreco(produto.preco)}</span>
+          
+          <div class="card-actions">
+            <div class="card-stepper">
+              <button type="button" onclick="ajustarQtdCard('${produto.id}', -1)" aria-label="Diminuir">-</button>
+              <input type="number" id="card-qty-${produto.id}" value="1" min="1" max="99" readonly>
+              <button type="button" onclick="ajustarQtdCard('${produto.id}', 1)" aria-label="Aumentar">+</button>
+            </div>
+            <button class="add-button" onclick="adicionarComQtd('${produto.id}')" aria-label="Adicionar ${produto.nome}" title="Adicionar ao pedido">+</button>
+          </div>
+        </div>
+
+      </div>
+    </article>
+  `).join("");
+}
+
+// ================= CONTROLES DE QUANTIDADE DO CARD =================
+window.ajustarQtdCard = function(id, delta) {
+  const input = document.getElementById(`card-qty-${id}`);
+  if (!input) return;
+  let valor = parseInt(input.value) || 1;
+  valor += delta;
+  if (valor < 1) valor = 1;
+  if (valor > 99) valor = 99;
+  input.value = valor;
+};
+
+window.adicionarComQtd = function(id) {
+  const input = document.getElementById(`card-qty-${id}`);
+  const qtd = input ? (parseInt(input.value) || 1) : 1;
+  adicionarAoCarrinho(id, qtd);
+  if (input) input.value = 1; // Volta para 1 após adicionar
+};
+
+// ================= CARRINHO =================
+function adicionarAoCarrinho(id, quantidade = 1) {
+  const produto = produtos.find(p => p.id === String(id));
+  if (!produto) return;
+
+  const itemExistente = carrinho.find(item => item.id === String(id));
+
+  if (itemExistente) {
+    itemExistente.quantidade += quantidade;
+  } else {
+    carrinho.push({ ...produto, quantidade: quantidade });
+  }
+
+  atualizarCarrinho();
+  mostrarToast(`${quantidade}x "${produto.nome}" adicionado(s)!`);
+}
+
+window.alterarQuantidade = function(id, delta) {
+  const item = carrinho.find(i => i.id === String(id));
+  if (!item) return;
+
+  item.quantidade += delta;
+  if (item.quantidade <= 0) {
+    removerDoCarrinho(id);
+    return;
+  }
+  atualizarCarrinho();
+};
+
+window.removerDoCarrinho = function(id) {
+  carrinho = carrinho.filter(i => i.id !== String(id));
+  atualizarCarrinho();
+};
+
+function atualizarCarrinho() {
+  const totalItens = carrinho.reduce((acc, cur) => acc + cur.quantidade, 0);
+  const totalValor = carrinho.reduce((acc, cur) => acc + (cur.preco * cur.quantidade), 0);
+
+  if (cartCount) cartCount.textContent = totalItens;
+  if (cartSubtotal) cartSubtotal.textContent = formatarPreco(totalValor);
+  if (dialogSubtotal) dialogSubtotal.textContent = formatarPreco(totalValor);
+
+  if (carrinho.length === 0) {
+    cartEmpty.style.display = "block";
+    cartItemsContainer.style.display = "none";
+    cartBottom.classList.add("is-hidden");
+  } else {
+    cartEmpty.style.display = "none";
+    cartItemsContainer.style.display = "block";
+    cartBottom.classList.remove("is-hidden");
+
+    cartItemsContainer.innerHTML = carrinho.map(item => `
+      <div class="cart-item">
+        <img src="${item.imagem}" alt="${item.nome}" onerror="this.src='assets/logo-natco.png'">
+        <div>
+          <h3>${item.nome}</h3>
+          <span class="cart-item-price">${formatarPreco(item.preco)}</span>
+          <div class="quantity-control">
+            <button onclick="alterarQuantidade('${item.id}', -1)">-</button>
+            <span>${item.quantidade}</span>
+            <button onclick="alterarQuantidade('${item.id}', 1)">+</button>
+          </div>
+        </div>
+        <button class="remove-item" onclick="removerDoCarrinho('${item.id}')" title="Remover produto">✕</button>
+      </div>
+    `).join("");
+  }
+}
+
+// ================= CHECKOUT WHATSAPP =================
+function finalizarPedido(e) {
+  e.preventDefault();
+  const form = new FormData(checkoutForm);
+  
+  const nome = form.get("name");
+  const metodo = form.get("method");
+  const pagamento = form.get("payment_method") || "A combinar";
+  const obs = form.get("notes") || "Nenhuma";
+  
+  let enderecoStr = "";
+  if (metodo === "Entrega") {
+    enderecoStr = `📍 *Endereço de Entrega:*
+Rua: ${form.get("street")}, Nº: ${form.get("number")}
+Bairro: ${form.get("neighborhood")} - ${form.get("city")}/${form.get("state")}
+Comp: ${form.get("complement") || "Não informado"}
+CEP: ${form.get("cep")}`;
+  } else {
+    enderecoStr = `📍 *Retirada no local*`;
+  }
+
+  const subtotal = carrinho.reduce((acc, cur) => acc + (cur.preco * cur.quantidade), 0);
+
+  let textoPedido = `*NOVO PEDIDO - NATCO* 🇦🇷\n\n`;
+  textoPedido += `👤 *Cliente:* ${nome}\n`;
+  textoPedido += `🛵 *Forma de entrega:* ${metodo}\n`;
+  textoPedido += `💳 *Forma de pagamento:* ${pagamento}\n\n`;
+  textoPedido += `🛒 *Itens do Pedido:*\n`;
+
+  carrinho.forEach(item => {
+    textoPedido += `• ${item.quantidade}x ${item.nome} (${formatarPreco(item.preco * item.quantidade)})\n`;
+  });
+
+  textoPedido += `\n💰 *Total:* ${formatarPreco(subtotal)}\n\n`;
+  textoPedido += `${enderecoStr}\n\n`;
+  textoPedido += `📝 *Obs:* ${obs}`;
+
+  const link = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(textoPedido)}`;
+  window.open(link, "_blank");
+}
+
+// ================= BUSCA DE CEP (VIACEP) =================
+async function buscarCEP() {
+  const cepInput = document.getElementById("customer-cep");
+  const status = document.getElementById("cep-status");
+  const cep = cepInput.value.replace(/\D/g, "");
+
+  if (cep.length !== 8) {
+    status.textContent = "Digite um CEP válido com 8 números.";
+    return;
+  }
+
+  status.textContent = "Buscando endereço...";
+
+  try {
+    const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const data = await res.json();
+
+    if (data.erro) {
+      status.textContent = "CEP não encontrado.";
+      return;
+    }
+
+    document.getElementById("customer-street").value = data.logradouro || "";
+    document.getElementById("customer-neighborhood").value = data.bairro || "";
+    document.getElementById("customer-city").value = data.localidade || "";
+    document.getElementById("customer-state").value = data.uf || "";
+    status.textContent = "Endereço preenchido com sucesso!";
+  } catch {
+    status.textContent = "Erro ao buscar CEP. Preencha manualmente.";
+  }
+}
+
+// ================= CONFIGURAÇÃO DE EVENTOS FIXOS =================
+function configurarEventosFixos() {
+  // Busca
+  buscaInput.addEventListener("input", e => {
+    termoBusca = e.target.value;
+    btnLimparBusca.hidden = !termoBusca;
+    renderizarProdutos();
+  });
+
+  btnLimparBusca.addEventListener("click", () => {
+    buscaInput.value = "";
+    termoBusca = "";
+    btnLimparBusca.hidden = true;
+    renderizarProdutos();
+  });
+
+  // Gaveta do Carrinho
+  const abrirGaveta = () => {
+    cartDrawer.classList.add("open");
+    cartOverlay.classList.add("visible");
+    document.body.classList.add("no-scroll");
+  };
+
+  const fecharGaveta = () => {
+    cartDrawer.classList.remove("open");
+    cartOverlay.classList.remove("visible");
+    document.body.classList.remove("no-scroll");
+  };
+
+  btnAbrirCarrinho.addEventListener("click", abrirGaveta);
+  btnFecharCarrinho.addEventListener("click", fecharGaveta);
+  cartOverlay.addEventListener("click", fecharGaveta);
+  btnContinuarComprando.addEventListener("click", fecharGaveta);
+
+  // Modal Checkout
+  btnCheckout.addEventListener("click", () => {
+    fecharGaveta();
+    checkoutDialog.showModal();
+  });
+
+  btnFecharCheckout.addEventListener("click", () => checkoutDialog.close());
+  checkoutForm.addEventListener("submit", finalizarPedido);
+
+  // Esconder/Mostrar endereço se for Entrega ou Retirada
+  selectMetodo.addEventListener("change", e => {
+    addressField.hidden = (e.target.value === "Retirada");
+  });
+
+  // Botão Buscar CEP
+  document.getElementById("lookup-cep").addEventListener("click", buscarCEP);
+}
+
+// ================= UTILITÁRIOS =================
+function formatarPreco(valor) {
+  return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function mostrarToast(mensagem) {
+  const toast = document.getElementById("toast");
+  if (!toast) return;
+  toast.textContent = mensagem;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 2500);
+}
