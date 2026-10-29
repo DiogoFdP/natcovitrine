@@ -1,10 +1,10 @@
 // ================= CONFIGURAÇÕES =================
-const API_URL = "https://script.google.com/macros/s/AKfycbyxeyY1T0pRCzsqhcsM5qMUAUBdblOj_DkOEZ_zQCM9IpkRzvlsksF5OPvn7lokUJkc/exec";
-const WHATSAPP_NUMERO = "5527996313345"; 
+const API_URL = "SUA_URL_DO_APPS_SCRIPT_AQUI";
+const WHATSAPP_NUMERO = "5527999999999"; 
 
 // ================= ESTADO DA APLICAÇÃO =================
 let produtos = [];
-let carrinho = []; // Zera ao reiniciar/dar F5
+let carrinho = []; // Sempre zera ao reiniciar/fechar
 let categoriaAtiva = "Todos";
 let termoBusca = "";
 
@@ -95,7 +95,7 @@ async function carregarProdutosDaPlanilha() {
   }
 }
 
-// ================= GERAR CATEGORIAS DINAMICAMENTE =================
+// ================= CATEGORIAS DINÂMICAS =================
 function renderizarCategoriasDinamicas() {
   if (!containerCategorias) return;
 
@@ -120,7 +120,7 @@ function renderizarCategoriasDinamicas() {
   });
 }
 
-// ================= RENDERIZAR PRODUTOS =================
+// ================= RENDERIZAR PRODUTOS (COM CONTROLE DIRETO 0 -> N) =================
 function renderizarProdutos() {
   const produtosFiltrados = produtos.filter(produto => {
     const bateCategoria = (categoriaAtiva === "Todos" || produto.categoria.toLowerCase() === categoriaAtiva.toLowerCase());
@@ -134,69 +134,90 @@ function renderizarProdutos() {
     return;
   }
 
-  gridProdutos.innerHTML = produtosFiltrados.map(produto => `
-    <article class="product-card">
-      <div class="product-photo-wrap">
-        <img class="product-photo" src="${produto.imagem}" alt="${produto.nome}" loading="lazy" onerror="this.src='assets/logo-natco.png'">
-        <span class="product-category">${produto.categoria}</span>
-      </div>
-      <div class="product-info">
-        <h3>${produto.nome}</h3>
-        <p class="product-description">${produto.descricao}</p>
-        
-        <div class="product-bottom-wrap">
-          <span class="product-price">${formatarPreco(produto.preco)}</span>
-          
-          <div class="card-actions">
-            <div class="card-stepper">
-              <button type="button" onclick="ajustarQtdCard('${produto.id}', -1)" aria-label="Diminuir">-</button>
-              <input type="number" id="card-qty-${produto.id}" value="1" min="1" max="99" readonly>
-              <button type="button" onclick="ajustarQtdCard('${produto.id}', 1)" aria-label="Aumentar">+</button>
-            </div>
-            <button class="add-button" onclick="adicionarComQtd('${produto.id}')" aria-label="Adicionar ${produto.nome}" title="Adicionar ao pedido">+</button>
-          </div>
-        </div>
+  gridProdutos.innerHTML = produtosFiltrados.map(produto => {
+    // Busca se esse produto já tem alguma quantidade no carrinho
+    const noCarrinho = carrinho.find(i => i.id === produto.id);
+    const qtdAtual = noCarrinho ? noCarrinho.quantidade : 0;
 
-      </div>
-    </article>
-  `).join("");
+    return `
+      <article class="product-card">
+        <div class="product-photo-wrap">
+          <img class="product-photo" src="${produto.imagem}" alt="${produto.nome}" loading="lazy" onerror="this.src='assets/logo-natco.png'">
+          <span class="product-category">${produto.categoria}</span>
+        </div>
+        <div class="product-info">
+          <h3>${produto.nome}</h3>
+          <p class="product-description">${produto.descricao}</p>
+          
+          <div class="product-bottom-wrap">
+            <span class="product-price">${formatarPreco(produto.preco)}</span>
+            
+            <!-- Controle direto: começa em 0 e altera o carrinho na hora -->
+            <div class="card-stepper">
+              <button type="button" 
+                      id="btn-minus-${produto.id}"
+                      onclick="alterarDiretoNoCard('${produto.id}', -1)" 
+                      aria-label="Diminuir"
+                      ${qtdAtual === 0 ? "disabled" : ""}>-</button>
+              
+              <span class="card-qty-num" id="card-qty-${produto.id}">${qtdAtual}</span>
+              
+              <button type="button" 
+                      onclick="alterarDiretoNoCard('${produto.id}', 1)" 
+                      aria-label="Aumentar">+</button>
+            </div>
+          </div>
+
+        </div>
+      </article>
+    `;
+  }).join("");
 }
 
-// ================= CONTROLES DE QUANTIDADE DO CARD =================
-window.ajustarQtdCard = function(id, delta) {
-  const input = document.getElementById(`card-qty-${id}`);
-  if (!input) return;
-  let valor = parseInt(input.value) || 1;
-  valor += delta;
-  if (valor < 1) valor = 1;
-  if (valor > 99) valor = 99;
-  input.value = valor;
-};
-
-window.adicionarComQtd = function(id) {
-  const input = document.getElementById(`card-qty-${id}`);
-  const qtd = input ? (parseInt(input.value) || 1) : 1;
-  adicionarAoCarrinho(id, qtd);
-  if (input) input.value = 1;
-};
-
-// ================= CARRINHO =================
-function adicionarAoCarrinho(id, quantidade = 1) {
+// ================= AÇÃO DIRETA NO CARD =================
+window.alterarDiretoNoCard = function(id, delta) {
   const produto = produtos.find(p => p.id === String(id));
   if (!produto) return;
 
   const itemExistente = carrinho.find(item => item.id === String(id));
 
-  if (itemExistente) {
-    itemExistente.quantidade += quantidade;
-  } else {
-    carrinho.push({ ...produto, quantidade: quantidade });
+  if (delta > 0) {
+    if (itemExistente) {
+      itemExistente.quantidade++;
+    } else {
+      carrinho.push({ ...produto, quantidade: 1 });
+    }
+  } else if (delta < 0) {
+    if (itemExistente) {
+      itemExistente.quantidade--;
+      if (itemExistente.quantidade <= 0) {
+        carrinho = carrinho.filter(i => i.id !== String(id));
+      }
+    }
   }
 
   atualizarCarrinho();
-  mostrarToast(`${quantidade}x "${produto.nome}" adicionado(s)!`);
+};
+
+// ================= SINCRONIZAR CARDS COM O CARRINHO =================
+function sincronizarCardsComCarrinho() {
+  produtos.forEach(prod => {
+    const spanQty = document.getElementById(`card-qty-${prod.id}`);
+    const btnMinus = document.getElementById(`btn-minus-${prod.id}`);
+    
+    if (spanQty) {
+      const item = carrinho.find(i => i.id === prod.id);
+      const qtd = item ? item.quantidade : 0;
+      spanQty.textContent = qtd;
+
+      if (btnMinus) {
+        btnMinus.disabled = (qtd === 0);
+      }
+    }
+  });
 }
 
+// ================= CARRINHO =================
 window.alterarQuantidade = function(id, delta) {
   const item = carrinho.find(i => i.id === String(id));
   if (!item) return;
@@ -218,16 +239,19 @@ function atualizarCarrinho() {
   const totalItens = carrinho.reduce((acc, cur) => acc + cur.quantidade, 0);
   const totalValor = carrinho.reduce((acc, cur) => acc + (cur.preco * cur.quantidade), 0);
 
-  // Atualiza topo e botão flutuante
+  // Atualiza indicadores de topo e flutuante
   if (cartCount) cartCount.textContent = totalItens;
   if (floatingCartCount) floatingCartCount.textContent = totalItens;
   if (cartSubtotal) cartSubtotal.textContent = formatarPreco(totalValor);
   if (dialogSubtotal) dialogSubtotal.textContent = formatarPreco(totalValor);
 
-  // Mostra ou esconde o botão flutuante
+  // Mostra ou esconde botão flutuante
   if (btnFloatingCart) {
     btnFloatingCart.hidden = (totalItens === 0);
   }
+
+  // Sincroniza os números dos cards na vitrine
+  sincronizarCardsComCarrinho();
 
   if (carrinho.length === 0) {
     cartEmpty.style.display = "block";
@@ -356,7 +380,6 @@ function configurarEventosFixos() {
     document.body.classList.remove("no-scroll");
   };
 
-  // Abre tanto pela sacola de cima quanto pela sacola flutuante
   btnAbrirCarrinho.addEventListener("click", abrirGaveta);
   if (btnFloatingCart) btnFloatingCart.addEventListener("click", abrirGaveta);
 
@@ -382,12 +405,4 @@ function configurarEventosFixos() {
 // ================= UTILITÁRIOS =================
 function formatarPreco(valor) {
   return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-function mostrarToast(mensagem) {
-  const toast = document.getElementById("toast");
-  if (!toast) return;
-  toast.textContent = mensagem;
-  toast.classList.add("show");
-  setTimeout(() => toast.classList.remove("show"), 2500);
 }
