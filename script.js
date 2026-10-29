@@ -4,7 +4,7 @@ const WHATSAPP_NUMERO = "5527996313345";
 
 // ================= ESTADO DA APLICAÇÃO =================
 let produtos = [];
-let carrinho = []; // Memória temporária: zera ao fechar ou dar F5
+let carrinho = []; // Zera ao reiniciar/dar F5
 let categoriaAtiva = "Todos";
 let termoBusca = "";
 
@@ -16,6 +16,8 @@ const containerCategorias = document.getElementById("category-list");
 
 // Carrinho DOM
 const btnAbrirCarrinho = document.getElementById("open-cart");
+const btnFloatingCart = document.getElementById("floating-cart");
+const floatingCartCount = document.getElementById("floating-cart-count");
 const btnFecharCarrinho = document.getElementById("close-cart");
 const cartOverlay = document.getElementById("cart-overlay");
 const cartDrawer = document.getElementById("cart-drawer");
@@ -37,7 +39,7 @@ const addressField = document.getElementById("address-field");
 
 // ================= INICIALIZAÇÃO =================
 document.addEventListener("DOMContentLoaded", () => {
-  localStorage.removeItem("@natco_cart"); // Garante que não haja restos antigos
+  localStorage.removeItem("@natco_cart");
 
   const anoElemento = document.getElementById("year");
   if (anoElemento) anoElemento.textContent = new Date().getFullYear();
@@ -85,7 +87,6 @@ async function carregarProdutosDaPlanilha() {
       };
     }).filter(p => p.nome && p.nome !== "Produto sem nome");
 
-    // Monta as categorias vindas da planilha dinamicamente
     renderizarCategoriasDinamicas();
     renderizarProdutos();
   } catch (erro) {
@@ -98,7 +99,6 @@ async function carregarProdutosDaPlanilha() {
 function renderizarCategoriasDinamicas() {
   if (!containerCategorias) return;
 
-  // Pega todas as categorias únicas da planilha
   const categoriasUnicas = [...new Set(produtos.map(p => p.categoria).filter(Boolean))];
 
   let html = `<button class="category-chip ${categoriaAtiva === 'Todos' ? 'active' : ''}" data-category="Todos" type="button">Todos os produtos</button>`;
@@ -110,7 +110,6 @@ function renderizarCategoriasDinamicas() {
 
   containerCategorias.innerHTML = html;
 
-  // Adiciona evento de clique para cada chip criado
   containerCategorias.querySelectorAll(".category-chip").forEach(chip => {
     chip.addEventListener("click", () => {
       containerCategorias.querySelectorAll(".category-chip").forEach(c => c.classList.remove("active"));
@@ -178,7 +177,7 @@ window.adicionarComQtd = function(id) {
   const input = document.getElementById(`card-qty-${id}`);
   const qtd = input ? (parseInt(input.value) || 1) : 1;
   adicionarAoCarrinho(id, qtd);
-  if (input) input.value = 1; // Volta para 1 após adicionar
+  if (input) input.value = 1;
 };
 
 // ================= CARRINHO =================
@@ -219,9 +218,16 @@ function atualizarCarrinho() {
   const totalItens = carrinho.reduce((acc, cur) => acc + cur.quantidade, 0);
   const totalValor = carrinho.reduce((acc, cur) => acc + (cur.preco * cur.quantidade), 0);
 
+  // Atualiza topo e botão flutuante
   if (cartCount) cartCount.textContent = totalItens;
+  if (floatingCartCount) floatingCartCount.textContent = totalItens;
   if (cartSubtotal) cartSubtotal.textContent = formatarPreco(totalValor);
   if (dialogSubtotal) dialogSubtotal.textContent = formatarPreco(totalValor);
+
+  // Mostra ou esconde o botão flutuante
+  if (btnFloatingCart) {
+    btnFloatingCart.hidden = (totalItens === 0);
+  }
 
   if (carrinho.length === 0) {
     cartEmpty.style.display = "block";
@@ -325,7 +331,6 @@ async function buscarCEP() {
 
 // ================= CONFIGURAÇÃO DE EVENTOS FIXOS =================
 function configurarEventosFixos() {
-  // Busca
   buscaInput.addEventListener("input", e => {
     termoBusca = e.target.value;
     btnLimparBusca.hidden = !termoBusca;
@@ -339,7 +344,6 @@ function configurarEventosFixos() {
     renderizarProdutos();
   });
 
-  // Gaveta do Carrinho
   const abrirGaveta = () => {
     cartDrawer.classList.add("open");
     cartOverlay.classList.add("visible");
@@ -352,12 +356,14 @@ function configurarEventosFixos() {
     document.body.classList.remove("no-scroll");
   };
 
+  // Abre tanto pela sacola de cima quanto pela sacola flutuante
   btnAbrirCarrinho.addEventListener("click", abrirGaveta);
+  if (btnFloatingCart) btnFloatingCart.addEventListener("click", abrirGaveta);
+
   btnFecharCarrinho.addEventListener("click", fecharGaveta);
   cartOverlay.addEventListener("click", fecharGaveta);
   btnContinuarComprando.addEventListener("click", fecharGaveta);
 
-  // Modal Checkout
   btnCheckout.addEventListener("click", () => {
     fecharGaveta();
     checkoutDialog.showModal();
@@ -366,12 +372,10 @@ function configurarEventosFixos() {
   btnFecharCheckout.addEventListener("click", () => checkoutDialog.close());
   checkoutForm.addEventListener("submit", finalizarPedido);
 
-  // Esconder/Mostrar endereço se for Entrega ou Retirada
   selectMetodo.addEventListener("change", e => {
     addressField.hidden = (e.target.value === "Retirada");
   });
 
-  // Botão Buscar CEP
   document.getElementById("lookup-cep").addEventListener("click", buscarCEP);
 }
 
