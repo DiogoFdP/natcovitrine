@@ -2,9 +2,12 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbyxeyY1T0pRCzsqhcsM5qMUAUBdblOj_DkOEZ_zQCM9IpkRzvlsksF5OPvn7lokUJkc/exec";
 const WHATSAPP_NUMERO = "5527996313345"; 
 
+// Tempo de cache em minutos (blindagem de cota e carregamento instantâneo)
+const TEMPO_CACHE_MINUTOS = 5; 
+
 // ================= ESTADO DA APLICAÇÃO =================
 let produtos = [];
-let carrinho = []; // Sempre zera ao reiniciar/fechar
+let carrinho = []; // Zera ao fechar ou dar F5
 let categoriaAtiva = "Todos";
 let termoBusca = "";
 
@@ -34,8 +37,6 @@ const checkoutDialog = document.getElementById("checkout-dialog");
 const btnFecharCheckout = document.getElementById("close-checkout");
 const checkoutForm = document.getElementById("checkout-form");
 const dialogSubtotal = document.getElementById("dialog-subtotal");
-const selectMetodo = document.getElementById("order-method");
-const addressField = document.getElementById("address-field");
 
 // ================= INICIALIZAÇÃO =================
 document.addEventListener("DOMContentLoaded", () => {
@@ -44,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const anoElemento = document.getElementById("year");
   if (anoElemento) anoElemento.textContent = new Date().getFullYear();
   
-  carregarProdutosDaPlanilha();
+  carregarProdutosComCache();
   configurarEventosFixos();
   atualizarCarrinho();
 });
@@ -66,8 +67,21 @@ function formatarLinkImagem(url) {
   return url.trim();
 }
 
-// ================= BUSCAR DADOS DO GOOGLE SHEETS =================
-async function carregarProdutosDaPlanilha() {
+// ================= BUSCAR DADOS (COM BLINDAGEM DE CACHE) =================
+async function carregarProdutosComCache() {
+  const cacheDados = localStorage.getItem("@natco_cardapio_cache");
+  const cacheTempo = localStorage.getItem("@natco_cardapio_time");
+  const agora = Date.now();
+  const limiteTempo = TEMPO_CACHE_MINUTOS * 60 * 1000;
+
+  // Se existe cache dentro dos 5 minutos, carrega instantaneamente
+  if (cacheDados && cacheTempo && (agora - cacheTempo < limiteTempo)) {
+    produtos = JSON.parse(cacheDados);
+    renderizarCategoriasDinamicas();
+    renderizarProdutos();
+    return;
+  }
+
   gridProdutos.innerHTML = "<p style='grid-column: 1/-1; text-align:center;'>Carregando delícias...</p>";
 
   try {
@@ -87,11 +101,20 @@ async function carregarProdutosDaPlanilha() {
       };
     }).filter(p => p.nome && p.nome !== "Produto sem nome");
 
+    localStorage.setItem("@natco_cardapio_cache", JSON.stringify(produtos));
+    localStorage.setItem("@natco_cardapio_time", String(agora));
+
     renderizarCategoriasDinamicas();
     renderizarProdutos();
   } catch (erro) {
     console.error("Erro ao carregar dados:", erro);
-    gridProdutos.innerHTML = "<p style='grid-column: 1/-1; text-align:center;'>Não foi possível carregar os produtos. Tente novamente mais tarde.</p>";
+    if (cacheDados) {
+      produtos = JSON.parse(cacheDados);
+      renderizarCategoriasDinamicas();
+      renderizarProdutos();
+    } else {
+      gridProdutos.innerHTML = "<p style='grid-column: 1/-1; text-align:center;'>Não foi possível carregar os produtos. Tente novamente mais tarde.</p>";
+    }
   }
 }
 
@@ -104,7 +127,7 @@ function renderizarCategoriasDinamicas() {
   let html = `<button class="category-chip ${categoriaAtiva === 'Todos' ? 'active' : ''}" data-category="Todos" type="button">Todos os produtos</button>`;
 
   categoriasUnicas.forEach(cat => {
-    const ativa = categoriaAtiva === cat ? "active" : "";
+    const ativa = (categoriaAtiva === cat) ? "active" : "";
     html += `<button class="category-chip ${ativa}" data-category="${cat}" type="button">${cat}</button>`;
   });
 
@@ -120,7 +143,7 @@ function renderizarCategoriasDinamicas() {
   });
 }
 
-// ================= RENDERIZAR PRODUTOS (COM CONTROLE DIRETO 0 -> N) =================
+// ================= RENDERIZAR PRODUTOS (0 -> N) =================
 function renderizarProdutos() {
   const produtosFiltrados = produtos.filter(produto => {
     const bateCategoria = (categoriaAtiva === "Todos" || produto.categoria.toLowerCase() === categoriaAtiva.toLowerCase());
@@ -135,7 +158,6 @@ function renderizarProdutos() {
   }
 
   gridProdutos.innerHTML = produtosFiltrados.map(produto => {
-    // Busca se esse produto já tem alguma quantidade no carrinho
     const noCarrinho = carrinho.find(i => i.id === produto.id);
     const qtdAtual = noCarrinho ? noCarrinho.quantidade : 0;
 
@@ -152,7 +174,6 @@ function renderizarProdutos() {
           <div class="product-bottom-wrap">
             <span class="product-price">${formatarPreco(produto.preco)}</span>
             
-            <!-- Controle direto: começa em 0 e altera o carrinho na hora -->
             <div class="card-stepper">
               <button type="button" 
                       id="btn-minus-${produto.id}"
@@ -199,7 +220,7 @@ window.alterarDiretoNoCard = function(id, delta) {
   atualizarCarrinho();
 };
 
-// ================= SINCRONIZAR CARDS COM O CARRINHO =================
+// ================= SINCRONIZAR NÚMEROS NA VITRINE =================
 function sincronizarCardsComCarrinho() {
   produtos.forEach(prod => {
     const spanQty = document.getElementById(`card-qty-${prod.id}`);
@@ -239,18 +260,15 @@ function atualizarCarrinho() {
   const totalItens = carrinho.reduce((acc, cur) => acc + cur.quantidade, 0);
   const totalValor = carrinho.reduce((acc, cur) => acc + (cur.preco * cur.quantidade), 0);
 
-  // Atualiza indicadores de topo e flutuante
   if (cartCount) cartCount.textContent = totalItens;
   if (floatingCartCount) floatingCartCount.textContent = totalItens;
   if (cartSubtotal) cartSubtotal.textContent = formatarPreco(totalValor);
   if (dialogSubtotal) dialogSubtotal.textContent = formatarPreco(totalValor);
 
-  // Mostra ou esconde botão flutuante
   if (btnFloatingCart) {
     btnFloatingCart.hidden = (totalItens === 0);
   }
 
-  // Sincroniza os números dos cards na vitrine
   sincronizarCardsComCarrinho();
 
   if (carrinho.length === 0) {
@@ -280,32 +298,27 @@ function atualizarCarrinho() {
   }
 }
 
-// ================= CHECKOUT WHATSAPP =================
+// ================= CHECKOUT WHATSAPP (100% ENTREGA) =================
 function finalizarPedido(e) {
   e.preventDefault();
   const form = new FormData(checkoutForm);
   
   const nome = form.get("name");
-  const metodo = form.get("method");
   const pagamento = form.get("payment_method") || "A combinar";
   const obs = form.get("notes") || "Nenhuma";
   
-  let enderecoStr = "";
-  if (metodo === "Entrega") {
-    enderecoStr = `📍 *Endereço de Entrega:*
+  // Endereço sempre obrigatório e formatado para entrega
+  const enderecoStr = `📍 *Endereço de Entrega:*
 Rua: ${form.get("street")}, Nº: ${form.get("number")}
 Bairro: ${form.get("neighborhood")} - ${form.get("city")}/${form.get("state")}
 Comp: ${form.get("complement") || "Não informado"}
 CEP: ${form.get("cep")}`;
-  } else {
-    enderecoStr = `📍 *Retirada no local*`;
-  }
 
   const subtotal = carrinho.reduce((acc, cur) => acc + (cur.preco * cur.quantidade), 0);
 
   let textoPedido = `*NOVO PEDIDO - NATCO* 🇦🇷\n\n`;
   textoPedido += `👤 *Cliente:* ${nome}\n`;
-  textoPedido += `🛵 *Forma de entrega:* ${metodo}\n`;
+  textoPedido += `🛵 *Tipo:* Entrega\n`;
   textoPedido += `💳 *Forma de pagamento:* ${pagamento}\n\n`;
   textoPedido += `🛒 *Itens do Pedido:*\n`;
 
@@ -394,10 +407,6 @@ function configurarEventosFixos() {
 
   btnFecharCheckout.addEventListener("click", () => checkoutDialog.close());
   checkoutForm.addEventListener("submit", finalizarPedido);
-
-  selectMetodo.addEventListener("change", e => {
-    addressField.hidden = (e.target.value === "Retirada");
-  });
 
   document.getElementById("lookup-cep").addEventListener("click", buscarCEP);
 }

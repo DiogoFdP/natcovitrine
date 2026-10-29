@@ -61,9 +61,7 @@
       </div>
       <div class="category-list" id="category-list" aria-label="Filtrar por categoria">
         <button class="category-chip active" data-category="Todos" type="button">Todos os produtos</button>
-        <button class="category-chip" data-category="Doces" type="button">Doces</button>
-        <button class="category-chip" data-category="Salgados" type="button">Salgados</button>
-        <button class="category-chip" data-category="Combos" type="button">Combos</button>
+       
       </div>
 
       <div class="product-grid" id="product-grid"></div>
@@ -96,36 +94,44 @@
   <dialog class="checkout-dialog" id="checkout-dialog">
     <form id="checkout-form">
       <div class="dialog-header"><div><span class="eyebrow">SÓ MAIS UM PASSO</span><h2>Como entregamos? ♡</h2></div><button class="icon-button" id="close-checkout" type="button" aria-label="Fechar">✕</button></div>
+      <!-- NOME -->
       <label for="customer-name">Seu nome *</label>
       <input id="customer-name" name="name" autocomplete="name" required placeholder="Como podemos te chamar?">
-      <label for="order-method">Você prefere? *</label>
-      <select id="order-method" name="method" required><option value="Entrega">Entrega</option><option value="Retirada">Retirada</option></select>
+
+      <!-- FORMA DE PAGAMENTO -->
       <label for="payment-method">Forma de pagamento *</label>
       <select id="payment-method" name="payment_method" required>
         <option value="Pix">Pix</option>
-        <option value="Cartão de Crédito">Cartão de Crédito (na entrega/retirada)</option>
-        <option value="Cartão de Débito">Cartão de Débito (na entrega/retirada)</option>
+        <option value="Cartão de Crédito">Cartão de Crédito (na entrega)</option>
+        <option value="Cartão de Débito">Cartão de Débito (na entrega)</option>
         <option value="Dinheiro">Dinheiro</option>
       </select>
-      <div id="address-field" class="address-fields">
+
+      <!-- CAMPOS DE ENDEREÇO (SEMPRE VISÍVEIS) -->
+      <div id="address-field">
         <label for="customer-cep">CEP *</label>
         <div class="cep-row">
-          <input id="customer-cep" name="cep" inputmode="numeric" autocomplete="postal-code" maxlength="9" placeholder="Ex.: 29000-000">
+          <input id="customer-cep" name="cep" inputmode="numeric" autocomplete="postal-code" maxlength="9" placeholder="Ex.: 29000-000" required>
           <button class="cep-button" id="lookup-cep" type="button">Buscar CEP</button>
         </div>
         <p class="cep-status" id="cep-status" aria-live="polite">Digite o CEP para preencher rua, bairro e cidade automaticamente.</p>
+
         <label for="customer-street">Rua / Avenida *</label>
-        <input id="customer-street" name="street" autocomplete="address-line1" placeholder="Nome da rua">
+        <input id="customer-street" name="street" autocomplete="address-line1" required placeholder="Nome da rua">
+
         <div class="address-grid">
-          <div><label for="customer-number">Número *</label><input id="customer-number" name="number" autocomplete="address-line2" placeholder="Nº"></div>
+          <div><label for="customer-number">Número *</label><input id="customer-number" name="number" required autocomplete="address-line2" placeholder="Nº"></div>
           <div><label for="customer-complement">Complemento</label><input id="customer-complement" name="complement" placeholder="Apto, bloco, casa..."></div>
         </div>
+
         <label for="customer-neighborhood">Bairro *</label>
-        <input id="customer-neighborhood" name="neighborhood" autocomplete="address-level3" placeholder="Bairro">
+        <input id="customer-neighborhood" name="neighborhood" required autocomplete="address-level3" placeholder="Bairro">
+
         <div class="address-grid">
-          <div><label for="customer-city">Cidade *</label><input id="customer-city" name="city" autocomplete="address-level2" placeholder="Cidade"></div>
-          <div><label for="customer-state">UF *</label><input id="customer-state" name="state" maxlength="2" autocomplete="address-level1" placeholder="ES"></div>
+          <div><label for="customer-city">Cidade *</label><input id="customer-city" name="city" required autocomplete="address-level2" placeholder="Cidade"></div>
+          <div><label for="customer-state">UF *</label><input id="customer-state" name="state" maxlength="2" required autocomplete="address-level1" placeholder="ES"></div>
         </div>
+      </div>
       </div>
       <label for="customer-notes">Observações (opcional)</label>
       <textarea id="customer-notes" name="notes" rows="2" placeholder="Alguma informação para o pedido?"></textarea>
