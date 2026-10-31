@@ -1,6 +1,6 @@
 // ================= CONFIGURAÇÕES =================
 const API_URL = "https://script.google.com/macros/s/AKfycbyxeyY1T0pRCzsqhcsM5qMUAUBdblOj_DkOEZ_zQCM9IpkRzvlsksF5OPvn7lokUJkc/exec";
-const WHATSAPP_NUMERO = "5527996313345"; 
+const WHATSAPP_NUMERO = "5527999199405"; 
 
 // Tempo de cache em minutos (blindagem de cota e carregamento instantâneo)
 const TEMPO_CACHE_MINUTOS = 5; 
